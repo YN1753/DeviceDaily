@@ -8,6 +8,11 @@
 import WidgetKit
 import SwiftUI
 
+private func nextMidnight(after date: Date, calendar: Calendar = .current) -> Date {
+    let startOfToday = calendar.startOfDay(for: date)
+    return calendar.date(byAdding: .day, value: 1, to: startOfToday) ?? date.addingTimeInterval(24 * 60 * 60)
+}
+
 // MARK: - 数据模型（与主 App 的 DigitalProduct 结构匹配）
 
 struct WidgetProduct: Identifiable, Codable, Equatable {
@@ -25,9 +30,10 @@ struct WidgetProduct: Identifiable, Codable, Equatable {
 
     var daysUsed: Int {
         let calendar = Calendar.current
-        let end = endDate ?? Date()
-        let components = calendar.dateComponents([.day], from: purchaseDate, to: end)
-        return max(1, components.day ?? 1)
+        let startOfPurchaseDate = calendar.startOfDay(for: purchaseDate)
+        let startOfEndDate = calendar.startOfDay(for: endDate ?? Date())
+        let components = calendar.dateComponents([.day], from: startOfPurchaseDate, to: startOfEndDate)
+        return max(1, (components.day ?? 0) + 1)
     }
 
     var costPerDay: Double {
@@ -86,7 +92,7 @@ struct Provider: TimelineProvider {
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<Entry>) -> Void) {
         let entry = SimpleEntry(date: Date(), products: loadProducts())
-        let timeline = Timeline(entries: [entry], policy: .atEnd)
+        let timeline = Timeline(entries: [entry], policy: .after(nextMidnight(after: entry.date)))
         completion(timeline)
     }
 }
@@ -171,4 +177,3 @@ struct DeviceDailyListWidget: Widget {
         .supportedFamilies([.systemMedium])
     }
 }
-

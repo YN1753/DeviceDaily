@@ -1,0 +1,95 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: macos-15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode.app
+
+      - name: Read version from tag
+        id: version
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Build app
+        run: |
+          xcodebuild \
+            -project DeviceDaily.xcodeproj \
+            -scheme DeviceDaily \
+            -configuration Release \
+            -destination 'generic/platform=macOS' \
+            -derivedDataPath build/DerivedData \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            DEVELOPMENT_TEAM="" \
+            clean build
+
+      - name: Prepare DMG contents
+        run: |
+          APP_PATH="build/DerivedData/Build/Products/Release/DeviceDaily.app"
+          STAGING_DIR="build/dmg"
+          mkdir -p "$STAGING_DIR"
+          cp -R "$APP_PATH" "$STAGING_DIR/"
+          ln -s /Applications "$STAGING_DIR/Applications"
+
+      - name: Create DMG
+        run: |
+          mkdir -p build/artifacts
+          hdiutil create \
+            -volname "DeviceDaily" \
+            -srcfolder build/dmg \
+            -ov \
+            -format UDZO \
+            "build/artifacts/DeviceDaily-${{ steps.version.outputs.version }}.dmg"
+
+      - name: Extract release notes
+        id: notes
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          python3 <<'PY'
+          import os
+          import pathlib
+          import re
+
+          version = os.environ["VERSION"]
+          changelog = pathlib.Path("CHANGELOG.md").read_text(encoding="utf-8")
+          pattern = re.compile(
+              r"## \[" + re.escape(version) + r"\] - .*?(?=\n## \[|\Z)",
+              re.S,
+          )
+          match = pattern.search(changelog)
+          notes = match.group(0).strip() if match else "See CHANGELOG.md for details."
+          output = pathlib.Path(os.environ["GITHUB_OUTPUT"])
+          with output.open("a", encoding="utf-8") as fh:
+              fh.write("body<<EOF\n")
+              fh.write(notes)
+              fh.write("\nEOF\n")
+          PY
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version.outputs.version }}
+          name: v${{ steps.version.outputs.version }}
+          body: ${{ steps.notes.outputs.body }}
+          files: |
+            build/artifacts/DeviceDaily-${{ steps.version.outputs.version }}.dmg

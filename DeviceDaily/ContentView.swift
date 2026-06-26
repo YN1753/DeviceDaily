@@ -8,17 +8,30 @@
 import SwiftUI
 import WidgetKit
 
+private enum ProductSheetRoute: Identifiable {
+    case add
+    case edit(DigitalProduct)
+
+    var id: String {
+        switch self {
+        case .add:
+            return "add"
+        case .edit(let product):
+            return product.id.uuidString
+        }
+    }
+}
+
 struct ContentView: View {
     @State private var products: [DigitalProduct] = []
-    @State private var showAddSheet = false
-    @State private var editingProduct: DigitalProduct? = nil
+    @State private var activeSheet: ProductSheetRoute? = nil
 
     var body: some View {
         VStack(spacing: 0) {
             // MARK: - 统计总览 + 添加按钮
             HStack(spacing: 24) {
                 StatCard(
-                    title: "总价值",
+                    title: "当前持有价值",
                     value: String(format: "¥%.0f", totalValue),
                     icon: "creditcard",
                     color: .blue
@@ -32,14 +45,14 @@ struct ContentView: View {
                 )
 
                 StatCard(
-                    title: "总日均成本",
+                    title: "当前每日总成本",
                     value: String(format: "¥%.2f", totalDailyCost),
                     icon: "chart.line.uptrend.xyaxis",
                     color: .orange
                 )
 
                 Button {
-                    showAddSheet = true
+                    activeSheet = .add
                 } label: {
                     Image(systemName: "plus")
                         .font(.system(size: 18, weight: .semibold))
@@ -185,8 +198,7 @@ struct ContentView: View {
                             .padding(.vertical, 8)
                             .contentShape(Rectangle())
                             .onTapGesture {
-                                editingProduct = product
-                                showAddSheet = true
+                                activeSheet = .edit(product)
                             }
 
                             Divider()
@@ -199,10 +211,13 @@ struct ContentView: View {
             }
         }
         .frame(minWidth: 700, minHeight: 340)
-        .sheet(isPresented: $showAddSheet, onDismiss: {
-            editingProduct = nil
-        }) {
-            ProductSheet(products: $products, existingProduct: editingProduct)
+        .sheet(item: $activeSheet) { sheet in
+            switch sheet {
+            case .add:
+                ProductSheet(products: $products)
+            case .edit(let product):
+                ProductSheet(products: $products, existingProduct: product)
+            }
         }
         .onAppear {
             loadProducts()
@@ -270,7 +285,7 @@ struct ContentView: View {
     // MARK: - 统计数据
 
     private var totalValue: Double {
-        products.map(\.price).reduce(0, +)
+        products.filter(\.isCurrentlyOwned).map(\.price).reduce(0, +)
     }
 
     private var inUseCount: Int {

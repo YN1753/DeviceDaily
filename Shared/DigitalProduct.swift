@@ -65,9 +65,10 @@ struct DigitalProduct: Identifiable, Codable, Equatable {
     /// 已使用天数，最少为 1 天
     var daysUsed: Int {
         let calendar = Calendar.current
-        let end = endDate ?? Date()
-        let components = calendar.dateComponents([.day], from: purchaseDate, to: end)
-        return max(1, components.day ?? 1)
+        let startOfPurchaseDate = calendar.startOfDay(for: purchaseDate)
+        let startOfEndDate = calendar.startOfDay(for: endDate ?? Date())
+        let components = calendar.dateComponents([.day], from: startOfPurchaseDate, to: startOfEndDate)
+        return max(1, (components.day ?? 0) + 1)
     }
 
     /// 日均成本：售出状态需减去 soldPrice
@@ -87,6 +88,11 @@ struct DigitalProduct: Identifiable, Codable, Equatable {
             return note
         }
         return status.displayName
+    }
+
+    /// 是否仍由当前用户持有，用于统计当前持有价值。
+    var isCurrentlyOwned: Bool {
+        status != .sold && status != .discarded && status != .gifted
     }
 
     /// 配置信息展示字符串，如 "32G · 512G"

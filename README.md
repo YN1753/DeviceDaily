@@ -9,8 +9,8 @@
 ## 功能特性
 
 - 📱 **设备管理**：记录名称、价格、购买日期、类型（手机/平板/电脑/手表/耳机/相机/游戏机）
-- 🧮 **日均成本**：自动计算 `(购买价 − 售出价) ÷ 使用天数`
-- 📊 **统计总览**：总价值、使用中设备数、总日均成本
+- 🧮 **日均成本**：自动计算 `(购买价 − 售出价) ÷ 使用天数`，天数按自然日含购买当天计算
+- 📊 **统计总览**：当前持有价值、使用中设备数、当前每日总成本
 - 🎨 **成本颜色**：绿色（<¥5/天）→ 橙色（¥5~20/天）→ 红色（>¥20/天）
 - ✏️ **编辑设备**：点击列表行即可修改所有字段
 - 🗑️ **删除设备**：行尾直接删除，或编辑弹窗内删除
@@ -64,9 +64,9 @@ cd DeviceDaily
 
 顶部显示三栏实时统计：
 
-- **总价值**：所有设备的购买价总和
+- **当前持有价值**：仍在手上设备的购买价总和
 - **使用中设备**：状态为"使用中"的设备数量
-- **总日均成本**：使用中设备的日均成本之和
+- **当前每日总成本**：使用中设备的日均成本之和
 
 ### 3. 编辑设备
 
@@ -114,6 +114,26 @@ cd DeviceDaily
 - `build/DeviceDaily.pkg` — macOS 安装包
 - `build/DeviceDaily.zip` — 压缩包
 - `build/export/DeviceDaily.app` — 原始应用
+
+### GitHub Release 自动发布
+
+仓库已包含 GitHub Actions 工作流 [`.github/workflows/release.yml`](/Users/starry/Desktop/DeviceDaily/DeviceDaily/.github/workflows/release.yml)，推送形如 `v1.0.1` 的 tag 后会自动：
+
+- 在 GitHub Actions 上编译 `DeviceDaily.app`
+- 打包生成 `DeviceDaily-版本号.dmg`
+- 发布到 GitHub Release
+- 使用 [`CHANGELOG.md`](/Users/starry/Desktop/DeviceDaily/DeviceDaily/CHANGELOG.md) 中对应版本段落作为更新日志
+
+GitHub Release 页面会自动提供该 tag 对应的源码压缩包（Source code zip / tar.gz），无需额外配置。
+
+示例：
+
+```bash
+git tag v1.0.1
+git push origin main --tags
+```
+
+> ⚠️ 该工作流当前生成的是**未签名** DMG，适合个人分发和测试。若后续要消除 Gatekeeper 警告，需要再补 Apple 签名与 notarization。
 
 ---
 
